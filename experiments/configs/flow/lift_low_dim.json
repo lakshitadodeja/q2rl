@@ -1,0 +1,26 @@
+{
+  "algo_name": "flow_policy",
+  "experiment": {
+    "name": "lift_flow_bc_pilot",
+    "epoch_every_n_steps": 100,
+    "render_video": true,
+    "rollout": {
+      "enabled": true,
+      "n": 20,
+      "horizon": 400,
+      "rate": 10
+    },
+    "save": {
+      "every_n_epochs": 10
+    }
+  },
+  "train": {
+    "data": "data/lift/ph/low_dim_v141.hdf5",
+    "output_dir": "results/flow_bc",
+    "num_epochs": 100,
+    "batch_size": 64,
+    "seq_length": 16,
+    "frame_stack": 2,
+    "seed": 0
+  }
+}
