@@ -21,6 +21,7 @@ Welcome to robomimic's documentation!
 
    datasets/overview
    datasets/robomimic_v0.1
+   datasets/mimicgen
    datasets/robosuite
    datasets/d4rl
    datasets/momart
@@ -41,8 +42,13 @@ Welcome to robomimic's documentation!
    tutorials/hyperparam_scan
    tutorials/reproducing_experiments
    tutorials/dataset_contents
+   tutorials/multi_dataset_training
+   tutorials/training_transformers
+   tutorials/training_diffusion_policy
    tutorials/using_pretrained_models
    tutorials/observations
+   tutorials/action_configs
+   tutorials/language_conditioning
    tutorials/pretrained_representations
    tutorials/custom_algorithms
    tutorials/tensor_collections
@@ -79,6 +85,8 @@ Welcome to robomimic's documentation!
    :maxdepth: 1
    :caption: Previous Versions
 
+   versions/v0.4
+   versions/v0.3
    versions/v0.2
 
 

@@ -20,6 +20,15 @@
 
 </div>
 
+## Flow Matching BC branch
+
+This `Flow-Matching` branch adds a Flow Matching policy and upgrades the bundled robomimic framework to a pinned official 0.5.0 commit for BC experiments. The final low-dimensional Lift policy achieved **100/100 successful independent rollouts** after 2000 training epochs (one training seed; five evaluation seeds).
+
+- [Implementation, paired Diffusion configuration, and reproduction instructions](FLOW_POLICY.md)
+- [Lift results, learning curves, evaluation tables, and video](docs/results/lift_flow_seed1_2000/README.md)
+
+For Flow BC, follow `FLOW_POLICY.md` and `scripts/flow/setup_oscar.sh`. The original Q2RL installation instructions below describe the original project. Q2RL online training has not been revalidated against this branch's upgraded robomimic framework; Flow BC has not yet been integrated with Q2RL's Q estimation or Q gating.
+
 ## Installation
 
 We provide installation instructions with conda and uv.

@@ -25,7 +25,7 @@ class EnvGym(EB.EnvBase):
         render=False, 
         render_offscreen=False, 
         use_image_obs=False, 
-        postprocess_visual_obs=True, 
+        use_depth_obs=False, 
         **kwargs,
     ):
         """
@@ -38,8 +38,6 @@ class EnvGym(EB.EnvBase):
             render_offscreen (bool): ignored - gym envs always support off-screen rendering
 
             use_image_obs (bool): ignored - gym envs don't typically use images
-
-            postprocess_visual_obs (bool): ignored - gym envs don't typically use images
         """
         self._init_kwargs = deepcopy(kwargs)
         self._env_name = env_name
@@ -205,7 +203,19 @@ class EnvGym(EB.EnvBase):
         return dict(env_name=self.name, type=self.type, env_kwargs=deepcopy(self._init_kwargs))
 
     @classmethod
-    def create_for_data_processing(cls, env_name, camera_names, camera_height, camera_width, reward_shaping, **kwargs):
+    def create_for_data_processing(
+        cls, 
+        env_name, 
+        camera_names, 
+        camera_height, 
+        camera_width, 
+        reward_shaping, 
+        render=None, 
+        render_offscreen=None, 
+        use_image_obs=None, 
+        use_depth_obs=None, 
+        **kwargs,
+    ):
         """
         Create environment for processing datasets, which includes extracting
         observations, labeling dense / sparse rewards, and annotating dones in
@@ -239,6 +249,13 @@ class EnvGym(EB.EnvBase):
         simulation computations.
         """
         return ()
+
+    @property
+    def base_env(self):
+        """
+        Grabs base simulation environment.
+        """
+        return self.env
 
     def __repr__(self):
         """

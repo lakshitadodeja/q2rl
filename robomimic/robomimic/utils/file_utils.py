@@ -3,6 +3,8 @@ A collection of utility functions for working with files, such as reading metada
 demonstration datasets, loading model checkpoints, or downloading dataset files.
 """
 import os
+import shutil
+import tempfile
 import h5py
 import json
 import time
@@ -10,12 +12,14 @@ import urllib.request
 import numpy as np
 from collections import OrderedDict
 from tqdm import tqdm
+from huggingface_hub import hf_hub_download
 
 import torch
 
 import robomimic.utils.obs_utils as ObsUtils
 import robomimic.utils.env_utils as EnvUtils
 import robomimic.utils.torch_utils as TorchUtils
+import robomimic.utils.lang_utils as LangUtils
 from robomimic.config import config_factory
 from robomimic.algo import algo_factory
 from robomimic.algo import RolloutPolicy
@@ -82,12 +86,17 @@ def get_demos_for_filter_key(hdf5_path, filter_key):
     return demo_keys
 
 
-def get_env_metadata_from_dataset(dataset_path):
+def get_env_metadata_from_dataset(dataset_path, set_env_specific_obs_processors=True):
     """
     Retrieves env metadata from dataset.
 
     Args:
         dataset_path (str): path to dataset
+
+        set_env_specific_obs_processors (bool): environment might have custom rules for how to process
+            observations - if this flag is true, make sure ObsUtils will use these custom settings. This
+            is a good place to do this operation to make sure it happens before loading data, running a 
+            trained model, etc.
 
     Returns:
         env_meta (dict): environment metadata. Contains 3 keys:
@@ -99,16 +108,22 @@ def get_env_metadata_from_dataset(dataset_path):
     dataset_path = os.path.expanduser(dataset_path)
     f = h5py.File(dataset_path, "r")
     env_meta = json.loads(f["data"].attrs["env_args"])
+    if "env_lang" in env_meta["env_kwargs"]: del env_meta["env_kwargs"]["env_lang"]
+
     f.close()
+    if set_env_specific_obs_processors:
+        # handle env-specific custom observation processing logic
+        EnvUtils.set_env_specific_obs_processing(env_meta=env_meta)
     return env_meta
 
 
-def get_shape_metadata_from_dataset(dataset_path, all_obs_keys=None, verbose=False):
+def get_shape_metadata_from_dataset(dataset_config, action_keys, all_obs_keys=None, verbose=False):
     """
     Retrieves shape metadata from dataset.
 
     Args:
-        dataset_path (str): path to dataset
+        dataset_config (str): config for dataset
+        action_keys (list): list of all action key strings
         all_obs_keys (list): list of all modalities used by the model. If not provided, all modalities
             present in the file are used.
         verbose (bool): if True, include print statements
@@ -120,18 +135,22 @@ def get_shape_metadata_from_dataset(dataset_path, all_obs_keys=None, verbose=Fal
             :`'all_shapes'`: dictionary that maps observation key string to shape
             :`'all_obs_keys'`: list of all observation modalities used
             :`'use_images'`: bool, whether or not image modalities are present
+            :`'use_depths'`: bool, whether or not depth modalities are present
     """
 
     shape_meta = {}
 
     # read demo file for some metadata
-    dataset_path = os.path.expanduser(dataset_path)
+    dataset_path = os.path.expanduser(dataset_config["path"])
     f = h5py.File(dataset_path, "r")
+    
     demo_id = list(f["data"].keys())[0]
     demo = f["data/{}".format(demo_id)]
-
-    # action dimension
-    shape_meta['ac_dim'] = f["data/{}/actions".format(demo_id)].shape[1]
+    
+    for key in action_keys:
+        assert len(demo[key].shape) == 2 # shape should be (B, D)
+    action_dim = sum([demo[key].shape[1] for key in action_keys])
+    shape_meta["ac_dim"] = action_dim
 
     # observation dimensions
     all_shapes = OrderedDict()
@@ -141,7 +160,13 @@ def get_shape_metadata_from_dataset(dataset_path, all_obs_keys=None, verbose=Fal
         all_obs_keys = [k for k in demo["obs"]]
 
     for k in sorted(all_obs_keys):
-        initial_shape = demo["obs/{}".format(k)].shape[1:]
+        if k == LangUtils.LANG_EMB_OBS_KEY:
+            # NOTE: currently supporting fixed language embedding per dataset
+            ## that is fetched from dataset config and not from file
+            assert "lang" in dataset_config, "Expected 'lang' key in dataset config."
+            initial_shape = LangUtils.get_lang_emb_shape()
+        else:
+            initial_shape = demo["obs/{}".format(k)].shape[1:]
         if verbose:
             print("obs key {} with shape {}".format(k, initial_shape))
         # Store processed shape for each obs key
@@ -155,6 +180,7 @@ def get_shape_metadata_from_dataset(dataset_path, all_obs_keys=None, verbose=Fal
     shape_meta['all_shapes'] = all_shapes
     shape_meta['all_obs_keys'] = all_obs_keys
     shape_meta['use_images'] = ObsUtils.has_modality("rgb", all_obs_keys)
+    shape_meta['use_depths'] = ObsUtils.has_modality("depth", all_obs_keys)
 
     return shape_meta
 
@@ -171,9 +197,9 @@ def load_dict_from_checkpoint(ckpt_path):
     """
     ckpt_path = os.path.expanduser(ckpt_path)
     if not torch.cuda.is_available():
-        ckpt_dict = torch.load(ckpt_path, map_location=lambda storage, loc: storage)
+        ckpt_dict = torch.load(ckpt_path, map_location=lambda storage, loc: storage, weights_only=False)
     else:
-        ckpt_dict = torch.load(ckpt_path)
+        ckpt_dict = torch.load(ckpt_path, weights_only=False)
     return ckpt_dict
 
 
@@ -386,6 +412,13 @@ def policy_from_checkpoint(device=None, ckpt_path=None, ckpt_dict=None, verbose=
             for k in obs_normalization_stats[m]:
                 obs_normalization_stats[m][k] = np.array(obs_normalization_stats[m][k])
 
+    # maybe restore action normalization stats
+    action_normalization_stats = ckpt_dict.get("action_normalization_stats", None)
+    if action_normalization_stats is not None:
+        for m in action_normalization_stats:
+            for k in action_normalization_stats[m]:
+                action_normalization_stats[m][k] = np.array(action_normalization_stats[m][k])
+
     if device is None:
         # get torch device
         device = TorchUtils.get_torch_device(try_to_use_cuda=config.train.cuda)
@@ -400,7 +433,11 @@ def policy_from_checkpoint(device=None, ckpt_path=None, ckpt_dict=None, verbose=
     )
     model.deserialize(ckpt_dict["model"])
     model.set_eval()
-    model = RolloutPolicy(model, obs_normalization_stats=obs_normalization_stats)
+    model = RolloutPolicy(
+        model,
+        obs_normalization_stats=obs_normalization_stats,
+        action_normalization_stats=action_normalization_stats
+    )
     if verbose:
         print("============= Loaded Policy =============")
         print(model)
@@ -438,12 +475,14 @@ def env_from_checkpoint(ckpt_path=None, ckpt_dict=None, env_name=None, render=Fa
     # create env from saved metadata
     env = EnvUtils.create_env_from_metadata(
         env_meta=env_meta, 
+        env_name=env_name, 
         render=render, 
         render_offscreen=render_offscreen,
-        use_image_obs=shape_meta["use_images"],
+        use_image_obs=shape_meta.get("use_images", False),
+        use_depth_obs=shape_meta.get("use_depths", False),
     )
     config, _ = config_from_checkpoint(algo_name=ckpt_dict["algo_name"], ckpt_dict=ckpt_dict, verbose=False)
-    env = EnvUtils.wrap_env_from_config(env, config=config) # apply environment warpper, if applicable
+    env = EnvUtils.wrap_env_from_config(env, config=config) # apply environment wrapper, if applicable
     if verbose:
         print("============= Loaded Environment =============")
         print(env)
@@ -511,3 +550,31 @@ def download_url(url, download_dir, check_overwrite=True):
     with DownloadProgressBar(unit='B', unit_scale=True,
                              miniters=1, desc=fname) as t:
         urllib.request.urlretrieve(url, filename=file_to_write, reporthook=t.update_to)
+
+
+def download_file_from_hf(repo_id, filename, download_dir, check_overwrite=True):
+    """
+    Downloads a file from Hugging Face.
+    Reference: https://huggingface.co/docs/huggingface_hub/main/en/guides/download
+    Example usage:
+        repo_id = "amandlek/mimicgen_datasets"
+        filename = "core/coffee_d0.hdf5"
+        download_dir = "/tmp"
+        download_file_from_hf(repo_id, filename, download_dir, check_overwrite=True)
+    Args:
+        repo_id (str): Hugging Face repo ID
+        filename (str): path to file in repo
+        download_dir (str): path to directory where file should be downloaded
+        check_overwrite (bool): if True, will sanity check the download fpath to make sure a file of that name
+            doesn't already exist there
+    """
+    with tempfile.TemporaryDirectory() as td:
+        # first check if file exists
+        file_to_write = os.path.join(download_dir, os.path.basename(filename))
+        if check_overwrite and os.path.exists(file_to_write):
+            user_response = input(f"Warning: file {file_to_write} already exists. Overwrite? y/n\n")
+            assert user_response.lower() in {"yes", "y"}, f"Did not receive confirmation. Aborting download."
+
+        # note: fpath is a pointer, so we need to look up the actual path on disk and then move it
+        fpath = hf_hub_download(repo_id=repo_id, filename=filename, repo_type="dataset", cache_dir=td)
+        shutil.move(os.path.realpath(fpath), file_to_write)

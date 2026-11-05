@@ -1,0 +1,31 @@
+{
+  "framework_commit": "d309eaecc18acf4152a830a895a6984b8ac71b05",
+  "upstream_runtime_files_checked": 88,
+  "modified_upstream_files": [
+    "robomimic/algo/__init__.py",
+    "robomimic/config/__init__.py"
+  ],
+  "modifications": "Only additional Flow registration imports; all remaining upstream runtime files are byte-identical. Flow additions are separate files.",
+  "train_py_sha256": "3830b87dc246d2df2edadef73f03b64384d45a39f21ba1c952390cb05353f8c8",
+  "local_validation": {
+    "flow_unit_tests": 6,
+    "wrapped_evaluation_tests": 1,
+    "upstream_integration_tests": 3,
+    "result": "passed",
+    "scope": "CPU, synthetic HDF5, official train.py for both algorithms; Flow CLI resume and checkpoint action generation. No new Lift simulator run."
+  },
+  "cluster_status": "Completed: real Lift smoke test, epoch-2000 BC training via checkpoint resume, and independent 100-episode final evaluation.",
+  "cluster_validation": {
+    "successful_smoke_job": 8357377,
+    "initial_training_job": 8357773,
+    "resume_job": 8367567,
+    "independent_evaluation_job": 8401742,
+    "final_epoch": 2000,
+    "training_seed": 1,
+    "independent_successes": 100,
+    "independent_episodes": 100,
+    "mean_independent_horizon": 43.88,
+    "result_directory": "docs/results/lift_flow_seed1_2000",
+    "resume_note": "Resumed from epoch 349 checkpoint; not an uninterrupted run. The underlying resource-read failure cause was not confirmed."
+  }
+}

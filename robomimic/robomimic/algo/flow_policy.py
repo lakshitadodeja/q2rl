@@ -4,7 +4,8 @@ Original: https://diffusion-policy.cs.columbia.edu/ by Cheng Chi.
 Source commit: d309eaecc18acf4152a830a895a6984b8ac71b05
 Original method order, docstrings, observation encoding, action chunks, EMA,
 and checkpoint interfaces retained. FLOW CHANGE marks algorithm replacements;
-COMPATIBILITY marks adaptations to the older q2rl robomimic interfaces.
+COMPATIBILITY marks support for single-frame and stacked observations.
+Training runs on the pinned official robomimic framework.
 See FLOW_POLICY.md and models/FLOW_POLICY_LICENSE.txt.
 """
 from typing import Callable, Union
@@ -15,8 +16,8 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# COMPATIBILITY: vendor the original diffusers 0.11.1 EMA class only.
-from robomimic.models.flow_ema import EMAModel
+# Use the same EMA implementation as the paired upstream Diffusion policy.
+from diffusers.training_utils import EMAModel
 
 import robomimic.models.obs_nets as ObsNets
 import robomimic.models.flow_policy_nets as DPNets
@@ -25,12 +26,6 @@ import robomimic.utils.torch_utils as TorchUtils
 import robomimic.utils.obs_utils as ObsUtils
 
 from robomimic.algo import register_algo_factory_func, PolicyAlgo
-
-import random
-import robomimic.utils.torch_utils as TorchUtils
-import robomimic.utils.tensor_utils as TensorUtils
-import robomimic.utils.obs_utils as ObsUtils
-
 
 @register_algo_factory_func("flow_policy")
 def algo_config_to_class(algo_config):
@@ -269,7 +264,7 @@ class FlowPolicy(PolicyAlgo):
         To = self.algo_config.horizon.observation_horizon
         Ta = self.algo_config.horizon.action_horizon
 
-        # COMPATIBILITY: q2rl's RolloutPolicy passes one observation, not a
+        # COMPATIBILITY: also accept callers that pass one observation, not a
         # frame stack. Build the same past->current ordering as SequenceDataset.
         # Also accept an already-stacked observation (upstream-style callers).
         if goal_dict is not None:

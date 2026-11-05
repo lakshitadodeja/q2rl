@@ -51,7 +51,7 @@ def create_env_from_metadata(
 - `type` is an enum defined in `robomimicenvs.env_base.EnvType` that specifies the type of environment. `type` is mainly used by the `robomimic.utils.env_utils.get_env_class()` function to look up the correct environment wrapper class.
 - `env_kwargs` specifies the keyword args that are required to initialize an environment. The `env_kwargs` will be passed to the constructor of the wrapped environment as keyword arguments through the `robomimic.utils.env_utils.create_env()` helper function.
 
-Although it is possible to manually specify the `env_meta` dictionary, the **robomimic** training pipeline reads the `env_meta` from the hdf5 dataset as an attribute. Please refer to the [Dataset section](../introduction/datasets.html) for more details on where the metadata is stored, and the `robomimic.utils.file_utils.get_env_metadata_from_dataset` function to see how it is loaded from the dataset at run-time.
+Although it is possible to manually specify the `env_meta` dictionary, the **robomimic** training pipeline reads the `env_meta` from the hdf5 dataset as an attribute. Please refer to the [Dataset section](../datasets/overview.html#dataset-structure) for more details on where the metadata is stored, and the `robomimic.utils.file_utils.get_env_metadata_from_dataset` function to see how it is loaded from the dataset at run-time.
 
 
 ## Initialize an Environment from a Dataset
@@ -146,7 +146,24 @@ $ python robomimic/scripts/get_dataset_info.py --dataset path/to/the/dataset.hdf
 
 ```
 
-
+When training a policy using `robomimic/scripts/train.py`, this environment metadata is extracted to instantiate an environment for policy evaluation (if rollout is enabled). Additionally, you can specify a dictionary to update environment metadata in the training config under `config.experiment.env_meta_update_dict`. For example, if you wish to evaluate your model using absolute actions, you can update your training config as follows to override a specific controller setting:
+```json
+{
+  ...
+  "experiment": {
+    ...
+    "env_meta_update_dict": {
+      "env_kwargs": {
+          "controller_configs": {
+              "control_delta": false
+          },
+      }
+    },
+    ...
+  },
+  ...
+}
+```
 
 ## Implement an Environment Wrapper
 

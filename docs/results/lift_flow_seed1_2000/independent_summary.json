@@ -1,0 +1,18 @@
+{
+  "successes": 100,
+  "episodes": 100,
+  "success_rate": 1.0,
+  "mean_horizon": 43.88,
+  "evaluation_seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004
+  ],
+  "training_seed_count": 1,
+  "training_seed": 1,
+  "checkpoint": "/oscar/scratch/hlin96/q2rl-repro/q2rl-flow/results/flow_aligned_train_8357773/training/lift_flow_aligned_seed1/20261104150822/models/model_epoch_2000.pth",
+  "checkpoint_sha256": "d1ef3ccbd630e7df928a97b2aa608489f782096e740d01e75bfc14163458984d",
+  "description": "One frozen epoch-2000 model, independently evaluated; five evaluation seeds are not five training seeds."
+}

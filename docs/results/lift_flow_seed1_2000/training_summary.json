@@ -1,0 +1,26 @@
+{
+  "training_seed": 1,
+  "target_epochs": 2000,
+  "last_training_epoch": 2000,
+  "last_evaluation": {
+    "epoch": 2000,
+    "success_rate": 1.0,
+    "mean_horizon": 44.02,
+    "mean_return": 1.0,
+    "bc_gradient_updates": 200000
+  },
+  "episodes_per_training_evaluation": 50,
+  "training_seed_count": 1,
+  "x_axis": "BC gradient updates, not environment steps",
+  "uncertainty": "No cross-training-seed confidence band: only one training run.",
+  "source_logs": [
+    "logs/lift-flow-aligned-8357773.out",
+    "logs/lift-flow-resume-8367567.out"
+  ],
+  "resume_note": "Later logs replace duplicate epoch entries after checkpoint resume; RNG sequence need not match an uninterrupted run.",
+  "video": {
+    "file": "Lift_epoch_2000.mp4",
+    "source": "/oscar/scratch/hlin96/q2rl-repro/q2rl-flow/results/flow_aligned_train_8357773/training/lift_flow_aligned_seed1/20261104150822/videos/low_dim_v141_epoch_2000.mp4",
+    "purpose": "Training epoch 2000 evaluation; not the independent 100-episode evaluation."
+  }
+}

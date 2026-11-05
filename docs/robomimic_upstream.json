@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/ARISE-Initiative/robomimic",
+  "commit": "d309eaecc18acf4152a830a895a6984b8ac71b05",
+  "local_directory": "robomimic",
+  "unmodified_training_entry": "robomimic/robomimic/scripts/train.py",
+  "purpose": "Matched Flow / Diffusion BC training; old Q2RL online pipeline not revalidated after migration."
+}

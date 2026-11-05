@@ -11,8 +11,6 @@ import random
 
 import torch
 import torch.nn as nn
-from torchvision.transforms import Lambda, Compose
-import torchvision.transforms.functional as TVF
 
 import robomimic.models.base_nets as BaseNets
 import robomimic.utils.tensor_utils as TensorUtils
@@ -24,6 +22,8 @@ from robomimic.models.base_nets import *
 from robomimic.utils.vis_utils import visualize_image_randomizer
 from robomimic.macros import VISUALIZE_RANDOMIZER
 
+import torchvision.transforms.functional as TVF
+from torchvision.transforms import Lambda, Compose
 
 """
 ================================================
@@ -97,7 +97,9 @@ class VisualCore(EncoderCore, BaseNets.ConvBase):
         backbone_kwargs["input_channel"] = input_shape[0]
 
         # extract only relevant kwargs for this specific backbone
-        backbone_kwargs = extract_class_init_kwargs_from_dict(cls=eval(backbone_class), dic=backbone_kwargs, copy=True)
+        backbone_kwargs = extract_class_init_kwargs_from_dict(
+                cls = ObsUtils.OBS_ENCODER_BACKBONES[backbone_class],
+                dic=backbone_kwargs, copy=True)
 
         # visual backbone
         assert isinstance(backbone_class, str)
@@ -184,6 +186,52 @@ class VisualCore(EncoderCore, BaseNets.ConvBase):
         return msg
 
 
+class VisualCoreLanguageConditioned(VisualCore):
+    """
+    Variant of VisualCore that expects language embedding during forward pass.
+    """
+    def __init__(
+        self,
+        input_shape,
+        backbone_class="ResNet18ConvFiLM",
+        pool_class="SpatialSoftmax",
+        backbone_kwargs=None,
+        pool_kwargs=None,
+        flatten=True,
+        feature_dimension=64,
+    ):
+        """
+        Update default backbone class.
+        """
+        super(VisualCoreLanguageConditioned, self).__init__(
+            input_shape=input_shape,
+            backbone_class=backbone_class,
+            pool_class=pool_class,
+            backbone_kwargs=backbone_kwargs,
+            pool_kwargs=pool_kwargs,
+            flatten=flatten,
+            feature_dimension=feature_dimension,
+        )
+
+    def forward(self, inputs, lang_emb=None):
+        """
+        Update forward pass to pass language embedding through ResNet18ConvFiLM.
+        """
+        assert lang_emb is not None
+        ndim = len(self.input_shape)
+        assert tuple(inputs.shape)[-ndim:] == tuple(self.input_shape)
+
+        # feed lang_emb through backbone explicitly, and then feed through rest of network
+        assert self.backbone is not None
+        x = self.backbone(inputs, lang_emb)
+        x = self.nets[1:](x)
+        if list(self.output_shape(list(inputs.shape)[1:])) != list(x.shape)[1:]:
+            raise ValueError('Size mismatch: expect size %s, but got size %s' % (
+                str(self.output_shape(list(inputs.shape)[1:])), str(list(x.shape)[1:]))
+            )
+        return x
+
+
 """
 ================================================
 Scan Core Networks (Conv1D Sequential + Pool)
@@ -231,8 +279,9 @@ class ScanCore(EncoderCore, BaseNets.ConvBase):
             conv_kwargs = dict()
 
         # Generate backbone network
+        # N input channels is assumed to be the first dimension
         self.backbone = BaseNets.Conv1dBase(
-            input_channel=1,
+            input_channel=self.input_shape[0],
             activation=conv_activation,
             **conv_kwargs,
         )
@@ -780,7 +829,7 @@ class GaussianNoiseRandomizer(Randomizer):
         out = TensorUtils.repeat_by_expand_at(inputs, repeats=self.num_samples, dim=0)
 
         # Sample noise across all samples
-        out = torch.rand(size=out.shape) * self.noise_std + self.noise_mean + out
+        out = torch.rand(size=out.shape).to(inputs.device) * self.noise_std + self.noise_mean + out
 
         # Possibly clamp
         if self.limits is not None:

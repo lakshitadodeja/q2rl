@@ -1,6 +1,6 @@
 --- upstream/robomimic/algo/diffusion_policy.py
 +++ robomimic/robomimic/algo/flow_policy.py
-@@ -1,5 +1,11 @@
+@@ -1,5 +1,12 @@
  """
 -Implementation of Diffusion Policy https://diffusion-policy.cs.columbia.edu/ by Cheng Chi
 +Flow Matching adaptation of the official robomimic Diffusion Policy.
@@ -8,21 +8,21 @@
 +Source commit: d309eaecc18acf4152a830a895a6984b8ac71b05
 +Original method order, docstrings, observation encoding, action chunks, EMA,
 +and checkpoint interfaces retained. FLOW CHANGE marks algorithm replacements;
-+COMPATIBILITY marks adaptations to the older q2rl robomimic interfaces.
++COMPATIBILITY marks support for single-frame and stacked observations.
++Training runs on the pinned official robomimic framework.
 +See FLOW_POLICY.md and models/FLOW_POLICY_LICENSE.txt.
  """
  from typing import Callable, Union
  import math
-@@ -9,13 +15,11 @@
+@@ -9,26 +16,18 @@
  import torch
  import torch.nn as nn
  import torch.nn.functional as F
 -# requires diffusers==0.11.1
 -from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 -from diffusers.schedulers.scheduling_ddim import DDIMScheduler
--from diffusers.training_utils import EMAModel
-+# COMPATIBILITY: vendor the original diffusers 0.11.1 EMA class only.
-+from robomimic.models.flow_ema import EMAModel
++# Use the same EMA implementation as the paired upstream Diffusion policy.
+ from diffusers.training_utils import EMAModel
  
  import robomimic.models.obs_nets as ObsNets
 -import robomimic.models.diffusion_policy_nets as DPNets
@@ -30,16 +30,21 @@
  import robomimic.utils.tensor_utils as TensorUtils
  import robomimic.utils.torch_utils as TorchUtils
  import robomimic.utils.obs_utils as ObsUtils
-@@ -28,7 +32,7 @@
- import robomimic.utils.obs_utils as ObsUtils
  
+ from robomimic.algo import register_algo_factory_func, PolicyAlgo
  
+-import random
+-import robomimic.utils.torch_utils as TorchUtils
+-import robomimic.utils.tensor_utils as TensorUtils
+-import robomimic.utils.obs_utils as ObsUtils
+-
+-
 -@register_algo_factory_func("diffusion_policy")
 +@register_algo_factory_func("flow_policy")
  def algo_config_to_class(algo_config):
      """
      Maps algo config to the BC algo class to instantiate, along with additional algo kwargs.
-@@ -42,23 +46,24 @@
+@@ -42,23 +41,24 @@
      """
  
      if algo_config.unet.enabled:
@@ -67,7 +72,7 @@
          obs_encoder = ObsNets.ObservationGroupEncoder(
              observation_group_shapes=observation_group_shapes,
              encoder_kwargs=encoder_kwargs,
-@@ -67,59 +72,44 @@
+@@ -67,59 +67,44 @@
          # replace all BatchNorm with GroupNorm to work with EMA
          # performance will tank if you forget to do this!
          obs_encoder = replace_bn_with_gn(obs_encoder)
@@ -141,7 +146,7 @@
      def process_batch_for_training(self, batch):
          """
          Processes input batch from a data loader to filter out
-@@ -131,28 +121,32 @@
+@@ -131,28 +116,32 @@
  
          Returns:
              input_batch (dict): processed and filtered batch that
@@ -179,7 +184,7 @@
      def train_on_batch(self, batch, epoch, validate=False):
          """
          Training on a single batch of data.
-@@ -175,12 +169,12 @@
+@@ -175,12 +164,12 @@
          Tp = self.algo_config.horizon.prediction_horizon
          action_dim = self.ac_dim
          B = batch["actions"].shape[0]
@@ -196,7 +201,7 @@
              # encode obs
              inputs = {
                  "obs": batch["obs"],
-@@ -189,33 +183,22 @@
+@@ -189,33 +178,22 @@
              for k in self.obs_shapes:
                  # first two dimensions should be [B, T] for inputs
                  assert inputs["obs"][k].ndim - 2 == len(self.obs_shapes[k])
@@ -242,7 +247,7 @@
              # logging
              losses = {
                  "l2_loss": loss
-@@ -229,18 +212,18 @@
+@@ -229,18 +207,18 @@
                      optim=self.optimizers["policy"],
                      loss=loss,
                  )
@@ -264,7 +269,7 @@
      def log_info(self, info):
          """
          Process info dictionary from @train_on_batch to summarize
-@@ -252,12 +235,12 @@
+@@ -252,12 +230,12 @@
          Returns:
              loss_log (dict): name -> summary statistic
          """
@@ -279,7 +284,7 @@
      def reset(self):
          """
          Reset algo state to prepare for environment rollouts.
-@@ -269,7 +252,8 @@
+@@ -269,7 +247,8 @@
          action_queue = deque(maxlen=Ta)
          self.obs_queue = obs_queue
          self.action_queue = action_queue
@@ -289,13 +294,13 @@
      def get_action(self, obs_dict, goal_dict=None):
          """
          Get policy action outputs.
-@@ -284,44 +268,47 @@
+@@ -284,44 +263,47 @@
          # obs_dict: key: [1,D]
          To = self.algo_config.horizon.observation_horizon
          Ta = self.algo_config.horizon.action_horizon
 -        
 +
-+        # COMPATIBILITY: q2rl's RolloutPolicy passes one observation, not a
++        # COMPATIBILITY: also accept callers that pass one observation, not a
 +        # frame stack. Build the same past->current ordering as SequenceDataset.
 +        # Also accept an already-stacked observation (upstream-style callers).
 +        if goal_dict is not None:
@@ -351,7 +356,7 @@
              "goal": goal_dict
          }
          for k in self.obs_shapes:
-@@ -342,24 +329,16 @@
+@@ -342,24 +324,16 @@
          noisy_action = torch.randn(
              (B, Tp, action_dim), device=self.device)
          naction = noisy_action
@@ -386,7 +391,7 @@
  
          # process action using Ta
          start = To - 1
-@@ -376,6 +355,8 @@
+@@ -376,6 +350,8 @@
              "optimizers": { k : self.optimizers[k].state_dict() for k in self.optimizers },
              "lr_schedulers": { k : self.lr_schedulers[k].state_dict() if self.lr_schedulers[k] is not None else None for k in self.lr_schedulers },
              "ema": self.ema.averaged_model.state_dict() if self.ema is not None else None,
@@ -395,7 +400,7 @@
          }
  
      def deserialize(self, model_dict, load_optimizers=False):
-@@ -397,7 +378,10 @@
+@@ -397,7 +373,10 @@
              model_dict["lr_schedulers"] = {}
  
          if model_dict.get("ema", None) is not None:
@@ -406,7 +411,7 @@
  
          if load_optimizers:
              for k in model_dict["optimizers"]:
-@@ -406,10 +390,57 @@
+@@ -406,10 +385,57 @@
                  if model_dict["lr_schedulers"][k] is not None:
                      self.lr_schedulers[k].load_state_dict(model_dict["lr_schedulers"][k])
  
@@ -466,7 +471,7 @@
          func: Callable[[nn.Module], nn.Module]) -> nn.Module:
      """
      Replace all submodules selected by the predicate with
-@@ -424,8 +455,8 @@
+@@ -424,8 +450,8 @@
      if parse_version(torch.__version__) < parse_version("1.9.0"):
          raise ImportError("This function requires pytorch >= 1.9.0")
  
@@ -477,7 +482,7 @@
          if predicate(m)]
      for *parent, k in bn_list:
          parent_module = root_module
-@@ -441,15 +472,15 @@
+@@ -441,15 +467,15 @@
          else:
              setattr(parent_module, k, tgt_module)
      # verify that all modules are replaced
@@ -496,7 +501,7 @@
      features_per_group: int=16) -> nn.Module:
      """
      Relace all BatchNorm layers with GroupNorm.
-@@ -458,7 +489,7 @@
+@@ -458,7 +484,7 @@
          root_module=root_module,
          predicate=lambda x: isinstance(x, nn.BatchNorm2d),
          func=lambda x: nn.GroupNorm(

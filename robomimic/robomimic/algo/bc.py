@@ -40,7 +40,8 @@ def algo_config_to_class(algo_config):
     vae_enabled = ("vae" in algo_config and algo_config.vae.enabled)
 
     rnn_enabled = algo_config.rnn.enabled
-    transformer_enabled = algo_config.transformer.enabled
+    # support legacy configs that do not have "transformer" item
+    transformer_enabled = ("transformer" in algo_config) and algo_config.transformer.enabled
 
     if gaussian_enabled:
         if rnn_enabled:
@@ -207,6 +208,7 @@ class BC(PolicyAlgo):
             net=self.nets["policy"],
             optim=self.optimizers["policy"],
             loss=losses["action_loss"],
+            max_grad_norm=self.global_config.train.max_grad_norm,
         )
         info["policy_grad_norms"] = policy_grad_norms
         return info
@@ -341,28 +343,6 @@ class BC_Gaussian(BC):
             log["Policy_Grad_Norms"] = info["policy_grad_norms"]
         return log
 
-    def get_action_and_log_prob(self, obs_dict, goal_dict=None):
-        """
-        Get policy action outputs.
-
-        Args:
-            obs_dict (dict): current observation
-            goal_dict (dict): (optional) goal
-
-        Returns:
-            action (torch.Tensor): action tensor
-        """
-        assert not self.nets.training
-        dists = self.nets["policy"].forward_train(obs_dict, goal_dict=goal_dict)
-        ## Sampling action from the GMM
-        action = self.nets["policy"](obs_dict, goal_dict=goal_dict) 
-       
-        log_prob = dists.log_prob(action)
-        
-        entropy =  0.5 * torch.log2(2 * torch.e * torch.pi * torch.mean(dists.variance) + 1e-10)
-
-        return action, torch.clip(log_prob, min=-100, max=1e20), torch.unsqueeze(entropy, dim = 0 )
-
 
 class BC_GMM(BC_Gaussian):
     """
@@ -388,43 +368,6 @@ class BC_GMM(BC_Gaussian):
         )
 
         self.nets = self.nets.float().to(self.device)
-    
-    def get_action_and_log_prob(self, obs_dict, goal_dict=None):
-        """
-        Get policy action outputs.
-
-        Args:
-            obs_dict (dict): current observation
-            goal_dict (dict): (optional) goal
-
-        Returns:
-            action (torch.Tensor): action tensor
-        """
-        assert not self.nets.training
-        dists = self.nets["policy"].forward_train(obs_dict, goal_dict=goal_dict)
-        ## Sampling action from the GMM
-        action = self.nets["policy"](obs_dict, goal_dict=goal_dict) 
-        
-        log_prob = dists.log_prob(action)
-        
-        #Calculate entropy of dists (MixtureSameFamily)
-        cat = dists.mixture_distribution          # Categorical over components
-        comps = dists.component_distribution      # e.g., MultivariateNormal
-
-        #mixture weights: shape (..., K)
-        w = cat.probs
-
-        #discrete entropy of the mixture weights: H(w)
-        discrete_H = -(w * (w.clamp_min(1e-20).log())).sum(dim=-1)
-
-        #Calculating entropy of each component
-        comp_entropy =  0.5 * torch.log2(2 * torch.e * torch.pi * torch.mean(comps.base_dist.variance, axis=2) + 1e-10)
-        expected_comp_H = (w * comp_entropy).sum(dim=-1)
-
-        entropy = discrete_H + expected_comp_H
-
-        return action, torch.clip(log_prob, min=-100, max=1e20), entropy
-        
 
 
 class BC_VAE(BC):
@@ -623,59 +566,6 @@ class BC_RNN(BC):
         action, self._rnn_hidden_state = self.nets["policy"].forward_step(
             obs_to_use, goal_dict=goal_dict, rnn_state=self._rnn_hidden_state)
         return action
-    
-    def get_action_and_log_prob(self, obs_dict, goal_dict=None):
-        """
-        Get policy action outputs.
-
-        Args:
-            obs_dict (dict): current observation
-            goal_dict (dict): (optional) goal
-
-        Returns:
-            action (torch.Tensor): action tensor
-        """
-        assert not self.nets.training
-
-        if self._rnn_hidden_state is None or self._rnn_counter % self._rnn_horizon == 0:
-            batch_size = list(obs_dict.values())[0].shape[0]
-            self._rnn_hidden_state = self.nets["policy"].get_rnn_init_state(batch_size=batch_size, device=self.device)
-
-            if self._rnn_is_open_loop:
-                # remember the initial observation, and use it instead of the current observation
-                # for open-loop action sequence prediction
-                self._open_loop_obs = TensorUtils.clone(TensorUtils.detach(obs_dict))
-
-        obs_to_use = obs_dict
-        if self._rnn_is_open_loop:
-            # replace current obs with last recorded obs
-            obs_to_use = self._open_loop_obs
-
-        self._rnn_counter += 1
-        action, self._rnn_hidden_state = self.nets["policy"].forward_step(
-            obs_to_use, goal_dict=goal_dict, rnn_state=self._rnn_hidden_state)
-        for k in obs_to_use.keys():
-            obs_to_use[k] = torch.unsqueeze(obs_to_use[k], dim=0)
-        dists = self.nets["policy"].forward_train(obs_dict=obs_to_use, goal_dict=goal_dict)
-        log_prob = dists.log_prob(action)
-        
-         #Calculate entropy of dists (MixtureSameFamily)
-        cat = dists.mixture_distribution          # Categorical over components
-        comps = dists.component_distribution      # e.g., MultivariateNormal
-
-        # mixture weights: shape (..., K)
-        w = cat.probs
-
-        #discrete entropy of the mixture weights: H(w)
-        discrete_H = -(w * (w.clamp_min(1e-20).log())).sum(dim=-1)
-
-        #Calculating entropy of each component
-        comp_entropy =  0.5 * torch.log2(2 * torch.e * torch.pi * torch.mean(comps.base_dist.variance, axis=-1) + 1e-10)
-        expected_comp_H = (w * comp_entropy).sum(dim=-1)
-
-        entropy = discrete_H + expected_comp_H
-        
-        return action, torch.clip(log_prob, min=-100, max=1e20), entropy
 
     def reset(self):
         """
@@ -812,6 +702,9 @@ class BC_Transformer(BC):
         """
         self.context_length = self.algo_config.transformer.context_length
         self.supervise_all_steps = self.algo_config.transformer.supervise_all_steps
+        self.pred_future_acs = self.algo_config.transformer.pred_future_acs
+        if self.pred_future_acs:
+            assert self.supervise_all_steps is True
 
     def process_batch_for_training(self, batch):
         """
@@ -831,10 +724,17 @@ class BC_Transformer(BC):
 
         if self.supervise_all_steps:
             # supervision on entire sequence (instead of just current timestep)
-            input_batch["actions"] = batch["actions"][:, :h, :]
+            if self.pred_future_acs:
+                ac_start = h - 1
+            else:
+                ac_start = 0
+            input_batch["actions"] = batch["actions"][:, ac_start:ac_start+h, :]
         else:
             # just use current timestep
             input_batch["actions"] = batch["actions"][:, h-1, :]
+
+        if self.pred_future_acs:
+            assert input_batch["actions"].shape[1] == h
 
         input_batch = TensorUtils.to_device(TensorUtils.to_float(input_batch), self.device)
         return input_batch
@@ -877,8 +777,19 @@ class BC_Transformer(BC):
         """
         assert not self.nets.training
 
-        return self.nets["policy"](obs_dict, actions=None, goal_dict=goal_dict)[:, -1, :]
+        output = self.nets["policy"](obs_dict, actions=None, goal_dict=goal_dict)
 
+        if self.supervise_all_steps:
+            if self.algo_config.transformer.pred_future_acs:
+                output = output[:, 0, :]
+            else:
+                output = output[:, -1, :]
+        else:
+            output = output[:, -1, :]
+
+        return output
+
+        
 
 class BC_Transformer_GMM(BC_Transformer):
     """

@@ -18,6 +18,10 @@ class FlowPolicyTest(unittest.TestCase):
         self.config.algo.unet.down_dims = (16, 32, 64)
         self.config.algo.unet.diffusion_step_embed_dim = 16
         self.config.algo.flow.num_inference_timesteps = 2
+        with self.config.values_unlocked():
+            self.config.algo.optim_params.policy["num_train_batches"] = 100
+            self.config.algo.optim_params.policy["num_epochs"] = 2000
+        self.config.algo.optim_params.policy.learning_rate.warmup_steps = 0
         ObsUtils.initialize_obs_utils_with_config(self.config)
         self.shapes = OrderedDict(robot0_eef_pos=(3,), robot0_eef_quat=(4,),
                                   robot0_gripper_qpos=(2,), object=(10,))
@@ -148,7 +152,8 @@ class FlowPolicyTest(unittest.TestCase):
                         np.arange(24, dtype=np.float32)[:, None], (24, *shape)))
                 demo.create_dataset("actions", data=np.broadcast_to(
                     np.arange(24, dtype=np.float32)[:, None] / 24, (24, 7)))
-            dataset = SequenceDataset(str(path), list(self.shapes), ["actions"],
+            dataset = SequenceDataset(str(path), list(self.shapes), ["actions"], ["actions"],
+                                      {"actions": {"normalization": None}},
                                       frame_stack=2, seq_length=16, load_next_obs=False)
             # Index 3 contains observation history [2, 3]. Action index To-1
             # must be the action at 3, which is the first executed prediction.
