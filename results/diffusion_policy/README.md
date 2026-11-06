@@ -5,11 +5,11 @@ observations from the proficient-human (`ph`) v1.5 datasets. Both runs used 2000
 
 | Task | Environment | Demos | Success rate at epoch 2000 (50 episodes) | Videos |
 |---|---|---|---|---|
-| Lift | `Lift` | 200 | 0.98 | [`lift/videos/`](lift/videos/) (epoch 1950) |
+| Lift | `Lift` | 200 | 0.98 | [`lift/videos/`](lift/videos/) (epoch 2000) |
 | Can | `PickPlaceCan` | 200 | 0.98 | [`can/videos/`](can/videos/) (epoch 2000) |
 
 Each video folder has 10 rollouts plus `all_episodes.mp4`, which joins them. All 10 succeeded in
-both folders. The Lift videos come from the epoch 1950 checkpoint, not epoch 2000.
+both folders. The videos come from the same epoch 2000 checkpoints linked below.
 
 The training configuration for each run is in `lift/config.json` and `can/config.json`. Paths in
 those files refer to the original training machine.
