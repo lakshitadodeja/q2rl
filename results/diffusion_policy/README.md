@@ -16,6 +16,9 @@ those files refer to the original training machine.
 
 ## Model weights
 
-Each checkpoint is about 1 GB, so they are stored outside this repository.
+Each checkpoint is about 1 GB, so they are stored on Hugging Face:
 
-Hugging Face link: to be added.
+[lukelu33/robomimic-diffusion-policy](https://huggingface.co/lukelu33/robomimic-diffusion-policy)
+
+- [`lift/model_epoch_2000.pth`](https://huggingface.co/lukelu33/robomimic-diffusion-policy/resolve/main/lift/model_epoch_2000.pth)
+- [`can/model_epoch_2000.pth`](https://huggingface.co/lukelu33/robomimic-diffusion-policy/resolve/main/can/model_epoch_2000.pth)
