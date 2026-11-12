@@ -1,5 +1,0 @@
-epoch,gradient_updates,success_rate_50,num_success,num_rollouts
-55,5500,0.54,27,50
-60,6000,0.56,28,50
-65,6500,0.48,24,50
-75,7500,0.74,37,50
