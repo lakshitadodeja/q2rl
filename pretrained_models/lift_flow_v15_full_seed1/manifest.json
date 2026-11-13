@@ -1,0 +1,24 @@
+{
+  "upstream": {
+    "repository": "https://github.com/ARISE-Initiative/robomimic",
+    "commit": "d309eaecc18acf4152a830a895a6984b8ac71b05",
+    "local_directory": "robomimic",
+    "unmodified_training_entry": "robomimic/robomimic/scripts/train.py",
+    "purpose": "Matched Flow / Diffusion BC training; old Q2RL online pipeline not revalidated after migration."
+  },
+  "dataset_sha256": "2067777cb8b532e9263dd09fd6448c41cc31224bb27be4a3b734010ae13eb540",
+  "dataset_path": "/oscar/scratch/hlin96/q2rl-repro/q2rl-flow/data_v15/lift/ph/low_dim_v15.hdf5",
+  "versions": {
+    "torch": "2.9.0",
+    "torchvision": "0.24.0",
+    "numpy": "1.26.4",
+    "robosuite": "1.5.1",
+    "mujoco": "3.2.3",
+    "diffusers": "0.11.1",
+    "huggingface_hub": "0.23.4",
+    "transformers": "4.41.2"
+  },
+  "python": "3.10.22 (main, Oct  9 2026, 15:21:30) [Clang 22.1.3 ]",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "mode": "train"
+}

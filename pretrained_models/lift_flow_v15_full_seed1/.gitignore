@@ -1,0 +1,3 @@
+*.pth
+.fmp-download-*/
+__pycache__/
