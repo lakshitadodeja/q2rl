@@ -22,12 +22,18 @@
 
 ## Flow Matching BC branch
 
-This `Flow-Matching` branch adds a Flow Matching policy and upgrades the bundled robomimic framework to a pinned official 0.5.0 commit for BC experiments. The final low-dimensional Lift policy achieved **100/100 successful independent rollouts** after 2000 training epochs (one training seed; five evaluation seeds).
+Current Lift experiments use v15 data, robosuite 1.5.1 and MuJoCo 3.2.3. Full-data and 20%-data models are separate training runs (seed 1; 2000 epochs x 100 gradient updates).
 
-- [Implementation, paired Diffusion configuration, and reproduction instructions](FLOW_POLICY.md)
-- [Lift results, learning curves, evaluation tables, and video](docs/results/lift_flow_seed1_2000/README.md)
+| Dataset | Early checkpoint | Final checkpoint | Downloads |
+|---|---|---|---|
+| 100%: 200 demos | Epoch 8: 54% (27/50); independent 54/100 | Epoch 2000: 100% (50/50); no independent final evaluation | [Full-data models](pretrained_models/lift_flow_v15_full_seed1/README.md) |
+| 20%: 40 demos | Epoch 8: 58% (29/50); independent evaluation pending | Epoch 2000: 100% (50/50); no independent final evaluation | [20%-data models](pretrained_models/lift_flow_v15_20pct_seed1/README.md) |
 
-For Flow BC, follow `FLOW_POLICY.md` and `scripts/flow/setup_oscar.sh`. The original Q2RL installation instructions below describe the original project. Q2RL online training has not been revalidated against this branch's upgraded robomimic framework; Flow BC has not yet been integrated with Q2RL's Q estimation or Q gating.
+- [Current v15 results and learning curves](docs/results/lift_flow_v15/README.md)
+- [Flow implementation and experiment documentation](FLOW_POLICY.md)
+- [Historical v1.4.1 results](docs/results/lift_flow_seed1_2000/README.md)
+
+The model directories provide verified Release downloaders. Keep the Release assets available. Use the matching environment in each model's manifest; the historical setup_oscar.sh profile uses older simulator versions. Q2RL online integration is a separate validation task.
 
 ## Installation
 

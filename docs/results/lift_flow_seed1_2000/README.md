@@ -1,5 +1,7 @@
 # Flow Matching BC: Lift, 2000 Epochs
 
+> **Historical experiment: v1.4.1 / v141 data.** These results and artifacts are preserved for provenance. For current v15 models and curves, see [the current results](../lift_flow_v15/README.md). The 100/100 independent result below belongs to this historical model.
+
 The final checkpoint achieved **100/100 successes (100%)** in independent evaluation, with a mean rollout length of **43.88 environment steps**. This is one trained policy evaluated with five random seeds, not five training runs.
 
 | Setting | Value |

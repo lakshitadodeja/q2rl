@@ -4,16 +4,18 @@ This branch adds a conditional flow matching policy to the official robomimic tr
 
 ## Results
 
-| Experiment | Training | Independent evaluation |
-|---|---|---|
-| Initial pilot (legacy framework) | 100 epochs, batch size 64, constant learning rate, seed 0 | 99/100 successes |
-| Aligned experiment (official framework) | 2000 epochs, batch size 100, cosine schedule, seed 1 | **100/100 successes** |
+The current model and result entry points use **v15 data / robosuite 1.5.1 / MuJoCo 3.2.3**.
 
-The aligned model's mean independent rollout length was **43.88 steps**. Its final in-training evaluation achieved 50/50 successes, with a mean length of 44.02 steps.
+| Dataset | Epoch 50 | Later training-time evaluations through epoch 2000 | Early checkpoint |
+|---|---|---|---|
+| Full: 200 demos | 100% | 98–100% | Epoch 8: 54% (27/50), independently 54/100 |
+| 20%: 40 demos | 96% | 94–100% | Epoch 8: 58% (29/50), independent evaluation pending |
 
-[Open the aligned results, plots, tables, and video](docs/results/lift_flow_seed1_2000/README.md).
+Both final epoch-2000 models achieved 50/50 in-training successes. Neither v15 final model has a reported independent evaluation. All curves represent one training seed, with 50 episodes per evaluation and 100 updates per epoch.
 
-These results come from one training seed per experiment. The five independent evaluation seeds are five groups of tests of the same model, not five independently trained policies. The pilot and aligned runs use different training settings; their success rates do not isolate the effect of training longer. No Diffusion comparison result is reported here yet.
+[Current curves and evaluation CSVs](docs/results/lift_flow_v15/README.md) · [Full-data models](pretrained_models/lift_flow_v15_full_seed1/README.md) · [20%-data models](pretrained_models/lift_flow_v15_20pct_seed1/README.md).
+
+The old v1.4.1 experiment's independent 100/100 result belongs only to that historical model; see [the archived report](docs/results/lift_flow_seed1_2000/README.md). Historical reproduction sections below remain labeled with their original environment.
 
 ## Framework and source files
 
@@ -45,7 +47,7 @@ The policy retains the observation encoder, ConditionalUnet1D, action chunks, EM
 
 Flow accepts both single-frame observations through a history queue and frame-stacked observations from the official FrameStackWrapper.
 
-## Paired training configurations
+## Historical v1.4.1: Paired training configurations
 
 - Flow: [`experiments/configs/flow/lift_low_dim.json`](experiments/configs/flow/lift_low_dim.json)
 - Diffusion reference: [`experiments/configs/flow/lift_diffusion_reference.json`](experiments/configs/flow/lift_diffusion_reference.json)
@@ -75,7 +77,7 @@ The training-curve horizontal axis is **BC parameter updates**, not environment 
 
 For comparisons, fix the same robomimic commit, dataset checksum, simulator versions, evaluation seeds, and checkpoint-selection rule. Use the final epoch-2000 checkpoint for both methods rather than selecting a best checkpoint for only one.
 
-## Oscar setup and training
+## Historical v1.4.1: Oscar setup and training
 
 Run these commands from the project root on Oscar. The setup script creates this checkout's own `.venv`, using Python 3.10 and the pinned dependencies in `scripts/flow/requirements-oscar.txt`:
 
@@ -103,7 +105,7 @@ Each job requests one GPU. The 12-hour limit is a wall-time ceiling. Outputs are
 
 The simulator dependencies are robosuite 1.4.1 and MuJoCo 3.1.6. The Flow branch's setup script is separate from the root Q2RL installation instructions and requirements.
 
-## Recovery from interrupted training
+## Historical v1.4.1: Recovery from interrupted training
 
 The aligned run's initial job, 8357773, stopped during the epoch-350 evaluation with a model-resource read error. The resource existed afterward. This does not establish whether the cause was file-handle exhaustion or another resource-access issue.
 
@@ -119,7 +121,7 @@ The script checks the original dataset hash, software versions, saved epoch, opt
 
 Resume does not guarantee the same RNG sequence or data order as an uninterrupted run. New experiments start from scratch; do not initialize them with the old pilot weights.
 
-## Independent final evaluation and report
+## Historical v1.4.1: Independent final evaluation and report
 
 The completed final evaluation is job **8401742**. It reloaded `model_epoch_2000.pth` and tested seeds **1000–1004**, 20 episodes per seed, with a 400-step horizon. Every group achieved 20/20 successes. No policy updates occurred.
 
