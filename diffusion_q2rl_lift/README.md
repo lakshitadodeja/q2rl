@@ -77,15 +77,16 @@ is `$ROOT/robomimic/`.
 
 ### 4. Checkpoint
 
-Download from Hugging Face
-([`lift/q2rl_base_full_data_epoch_8.pth`](https://huggingface.co/lukelu33/robomimic-diffusion-policy/resolve/main/lift/q2rl_base_full_data_epoch_8.pth),
-about 500 MB) and check it. This file is the original checkpoint with the optimizer state removed
-(it is only needed to resume DP training); the network and EMA weights are unchanged and give
-identical actions:
+On Oscar, copy it from the shared folder (about 500 MB) and check it:
 
 ```bash
+cp /oscar/scratch/hlu84/q2rl_share/q2rl_base_full_data_epoch_8.pth .
 echo "6481c97eca9166122191e6bd3a59ea037060a1b321d6e4722935aeba3c0cb2a0  q2rl_base_full_data_epoch_8.pth" | sha256sum -c
 ```
+
+`ls` on that folder's parent is not allowed, so use the full path. This file is the original
+checkpoint with the optimizer state removed (it is only needed to resume DP training); the network
+and EMA weights are unchanged and give identical actions.
 
 ### 5. Smoke test (CPU, a few minutes)
 
