@@ -18,7 +18,7 @@ The run in progress uses `SEED=0`; use different seeds (e.g. 1 and 2) for the ex
 | Evaluation | every 20k online steps, 20 episodes |
 | Logging | W&B off (`--debug=True`); every metric goes to `metrics.jsonl` in the run directory |
 
-The checkpoint file name says `success_0.52`: that was robomimic's in-training evaluation, which
+The original checkpoint file name says `success_0.52`: that was robomimic's in-training evaluation, which
 executes 8 actions per prediction. It is not the setting used here; the 53% above is.
 All eight full-data checkpoints screened this way are in
 [`base_policy_eval/full_data_exec1_screen.json`](base_policy_eval/full_data_exec1_screen.json).
@@ -79,10 +79,12 @@ is `$ROOT/robomimic/`.
 
 Download from Hugging Face
 ([`lift/q2rl_base_full_data_epoch_8.pth`](https://huggingface.co/lukelu33/robomimic-diffusion-policy/resolve/main/lift/q2rl_base_full_data_epoch_8.pth),
-about 1 GB) and check it:
+about 500 MB) and check it. This file is the original checkpoint with the optimizer state removed
+(it is only needed to resume DP training); the network and EMA weights are unchanged and give
+identical actions:
 
 ```bash
-echo "5efc9ca4e7fdc3896dacfac7cfb5828e97a32c6876015b93018e026298567cd2  q2rl_base_full_data_epoch_8.pth" | sha256sum -c
+echo "6481c97eca9166122191e6bd3a59ea037060a1b321d6e4722935aeba3c0cb2a0  q2rl_base_full_data_epoch_8.pth" | sha256sum -c
 ```
 
 ### 5. Smoke test (CPU, a few minutes)
