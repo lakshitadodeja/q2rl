@@ -1,0 +1,78 @@
+{
+ "run": "lift_ph_low_dim_dp_early50 (200 demos, low_dim_v15.hdf5, 50 epochs, save every 2)",
+ "note": "base Diffusion Policy alone, predict 16 / execute 1 per step, 300-step episodes",
+ "results": [
+  {
+   "epoch": 6,
+   "successes": 6,
+   "episodes": 30,
+   "success_rate": 0.2,
+   "exec_horizon": 1,
+   "horizon": 300,
+   "seed": 0
+  },
+  {
+   "epoch": 8,
+   "successes": 16,
+   "episodes": 30,
+   "success_rate": 0.533,
+   "exec_horizon": 1,
+   "horizon": 300,
+   "seed": 0
+  },
+  {
+   "epoch": 10,
+   "successes": 18,
+   "episodes": 30,
+   "success_rate": 0.6,
+   "exec_horizon": 1,
+   "horizon": 300,
+   "seed": 0
+  },
+  {
+   "epoch": 12,
+   "successes": 19,
+   "episodes": 30,
+   "success_rate": 0.633,
+   "exec_horizon": 1,
+   "horizon": 300,
+   "seed": 0
+  },
+  {
+   "epoch": 14,
+   "successes": 19,
+   "episodes": 30,
+   "success_rate": 0.633,
+   "exec_horizon": 1,
+   "horizon": 300,
+   "seed": 0
+  },
+  {
+   "epoch": 16,
+   "successes": 18,
+   "episodes": 30,
+   "success_rate": 0.6,
+   "exec_horizon": 1,
+   "horizon": 300,
+   "seed": 0
+  },
+  {
+   "epoch": 20,
+   "successes": 18,
+   "episodes": 30,
+   "success_rate": 0.6,
+   "exec_horizon": 1,
+   "horizon": 300,
+   "seed": 0
+  },
+  {
+   "epoch": 26,
+   "successes": 24,
+   "episodes": 30,
+   "success_rate": 0.8,
+   "exec_horizon": 1,
+   "horizon": 300,
+   "seed": 0
+  }
+ ]
+}

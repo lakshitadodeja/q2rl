@@ -249,6 +249,8 @@ class Q2RLAgent_RS(flax.struct.PyTreeNode):
     def qest_critic_loss_fn(self, batch, params: Params, rng: PRNGKey):
         """classes that inherit this class can change this function"""
 
+        # TODO(Diffusion/Flow phase 1): with q2rl_robosuite_diffusion.py the BC log-prob and entropy are
+        # TEMPORARILY 0 (V_BC only), so this term reduces to the Monte Carlo return. Not the true values.
         target_q_bc = batch["mc_returns"] + batch["bc_probs"] + batch["bc_entropy"]
         batch_size = batch["rewards"].shape[0]
         chex.assert_shape(target_q_bc, (batch_size,))
@@ -563,6 +565,8 @@ class Q2RLAgent_RS(flax.struct.PyTreeNode):
         rl_q =  self.forward_critic(observations, rl_action, train=False).min(axis=0)
         v = self.forward_value_critic(observations, train=False)
         
+        # TODO(Diffusion/Flow phase 1): with q2rl_robosuite_diffusion.py the BC log-prob and entropy are
+        # TEMPORARILY 0 (V_BC only), so this term reduces to V(s). Not the true values.
         bc_q =  v + bc_log_prob + bc_entropy
         final_action = jnp.where((rl_q - bc_q)>0, rl_action, bc_action)
 
